@@ -21,10 +21,15 @@
         # 等 agent 真正空闲再提醒，避免"这一轮刚完、下一轮已开始"时误报
         idleOnly: true
         idleTimeoutMs: 300000
-        # 点击卡片时把浏览器拉到前台
+        # 点击卡片时把浏览器窗口拉到前台
         focusBrowser: true
-        # ⚠ 必须与实际打开 GUI 的 URL 完全一致，否则浏览器会新开标签而不是切回已有标签
-        webUrl: 'http://127.0.0.1:3080/'
+        # 按窗口标题匹配的子串（浏览器窗口标题形如「<标签页标题> - Google Chrome」）
+        # 用 Edge 请改成 'Microsoft Edge'；留空则直接走窗口类兜底
+        focusWindowTitle: 'Google Chrome'
+        # 窗口类名前缀兜底（Chrome 与 Edge 都是 Chrome_WidgetWin_1）
+        focusWindowClass: 'Chrome_WidgetWin'
+        # 聚焦脚本；留空 = 用包内自带的 assets/dsh-focus-window.ps1
+        focusScriptPath: ''
         # 两个内部路由；如无冲突不必改
         pendingPath: '/dsh-notify/pending'
         clickPath: '/dsh-notify/click'

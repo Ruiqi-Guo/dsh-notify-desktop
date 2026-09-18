@@ -80,7 +80,8 @@ dsh plugin --profile web add 'D:\path\to\dsh-notify-desktop'
 | `reasons` | `[]` | 只提醒这些结束原因（`completed` / `aborted` / `blocked` / `error` / `max-tokens` / `interrupted`） |
 | `skipSubagents` | `true` | 跳过子代理会话 |
 | `idleOnly` / `idleTimeoutMs` | `true` / `300000` | 先等 `agent.whenIdle()` 再提醒 |
-| `focusBrowser` / `webUrl` | `true` / `http://127.0.0.1:3080/` | 点击时把浏览器拉到前台 |
+| `focusBrowser` | `true` | 点击时把浏览器窗口拉到前台 |
+| `focusWindowTitle` / `focusWindowClass` | `Google Chrome` / `Chrome_WidgetWin` | 怎么找到浏览器窗口：先按标题子串，找不到再按窗口类兜底（Edge 用 `Microsoft Edge`） |
 | `pendingPath` / `clickPath` | `/dsh-notify/*` | 两个内部路由 |
 
 ---
@@ -114,7 +115,7 @@ dsh plugin --profile web add 'D:\path\to\dsh-notify-desktop'
 ## 已知限制
 
 - **只支持 Windows**（`os: ["win32"]`）：卡片是 PowerShell + WinForms。「点击跳到对应会话」还依赖浏览器**已打开 GUI**。
-- **`webUrl` 必须与实际地址完全一致**：浏览器只在 URL 完全相同时切回已有标签页，否则会新开一个。
+- **`webUrl` 那条限制已经不存在了**：早先想用「打开 GUI 的 URL」来把浏览器调到前台，但 GUI 首页要求鉴权、实际地址带 token 且随重启变化 —— 靠 URL 匹配只会开出一个「需要鉴权」的废标签页。现在改成**直接激活浏览器窗口**（`assets/dsh-focus-window.ps1`），先按窗口标题子串匹配、找不到再按窗口类兜底，与 URL 无关。
 - **`turn/end` ≠ 整棵树落定**：DSH 没有「所有子代理都跑完」的事件。长任务想要「整树落定才提醒一次」，现在只能靠 `idleOnly`（等 agent 空闲）近似。
 - **多个浏览器标签页**：待切会话是单消费者（读一次就清空），所以只会有一个标签页跳过去 —— 这是刻意的。
 
