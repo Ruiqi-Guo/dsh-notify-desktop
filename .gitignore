@@ -1,0 +1,7 @@
+# 依赖与构建产物
+node_modules/
+lib/**/*.map
+
+# 运行时产物
+*.log
+.dsh-notify-state/

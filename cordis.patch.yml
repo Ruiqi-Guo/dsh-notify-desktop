@@ -1,0 +1,30 @@
+# 插件自带的接线层：`dsh plugin --profile web add dsh-notify-desktop` 会自动并入这一层
+# （包 package.json 里的 dsh.bundle.patch 指向本文件），不需要手工改 profile 的 patch。
+- insert:
+    - id: dsh-notify-desktop
+      name: dsh-notify-desktop
+      config:
+        # 卡片脚本；留空 = 用包内自带的 assets/dsh-notify.ps1
+        scriptPath: ''
+        # 卡片文案
+        title: '会话完成'
+        message: ''            # 留空 = 按结束原因自动取文案
+        # 外观：popup（自绘橙色卡片，可改色、可常驻）/ toast（系统 Toast，改不了色、会自动消失）/ auto
+        style: 'popup'
+        accent: '#F7630C'
+        # true = 不点不消失 —— 显眼提醒就用这个
+        persistUntilClick: true
+        # 只提醒这些结束原因；留空 = 全部提醒（completed / aborted / blocked / error / max-tokens / interrupted）
+        reasons: []
+        # 子代理会话不提醒（否则子代理每跑完一步都会响）
+        skipSubagents: true
+        # 等 agent 真正空闲再提醒，避免"这一轮刚完、下一轮已开始"时误报
+        idleOnly: true
+        idleTimeoutMs: 300000
+        # 点击卡片时把浏览器拉到前台
+        focusBrowser: true
+        # ⚠ 必须与实际打开 GUI 的 URL 完全一致，否则浏览器会新开标签而不是切回已有标签
+        webUrl: 'http://127.0.0.1:3080/'
+        # 两个内部路由；如无冲突不必改
+        pendingPath: '/dsh-notify/pending'
+        clickPath: '/dsh-notify/click'
