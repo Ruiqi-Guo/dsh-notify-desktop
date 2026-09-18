@@ -118,3 +118,28 @@ PowerShell 5.1 的 `Get-Content` 默认按 **ANSI** 读文件。用它读一个 
 中文会显示成乱码 —— 但**文件本身是好的**。别据此判断"写入坏了"。
 要确认就用 `[System.IO.File]::ReadAllText($p, [System.Text.Encoding]::UTF8)`。
 本仓库的 `logs/record-analysis.log`（同类工具）索性把标签写成 ASCII，避免这种歧义。
+
+---
+
+## 9. `ShowWindow(SW_RESTORE)` 会把最大化/全屏窗口还原掉
+
+激活一个已有窗口时，很容易顺手写：
+
+```powershell
+[void][Win]::ShowWindow($h, 9)   # SW_RESTORE —— 错
+[void][Win]::SetForegroundWindow($h)
+```
+
+但 `SW_RESTORE` 的语义是「把最小化/最大化/全屏的窗口还原成**普通窗口**」。
+用户正在全屏用浏览器时点通知卡片，浏览器就被还原了（实测踩到）。
+
+正确做法 —— **只在最小化时才恢复**：
+
+```powershell
+if ([Win]::IsIconic($h)) { [void][Win]::ShowWindow($h, 9) }   # 9 = SW_RESTORE
+[void][Win]::BringWindowToTop($h)
+[void][Win]::SetForegroundWindow($h)
+```
+
+验证方式：开个记事本 → `ShowWindow(SW_MAXIMIZE)` → 跑聚焦逻辑 →
+`IsZoomed()` 必须仍为真。

@@ -32,6 +32,7 @@ public delegate bool EnumProc(System.IntPtr h, System.IntPtr l);
 [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(System.IntPtr h, System.Text.StringBuilder s, int n);
 [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassName(System.IntPtr h, System.Text.StringBuilder s, int n);
 [DllImport("user32.dll")] public static extern bool IsWindowVisible(System.IntPtr h);
+[DllImport("user32.dll")] public static extern bool IsIconic(System.IntPtr h);
 [DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow();
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h);
 [DllImport("user32.dll")] public static extern bool BringWindowToTop(System.IntPtr h);
@@ -71,7 +72,9 @@ if ($target -ne [IntPtr]::Zero) {
   $tFg = [DshFocus.Win]::GetWindowThreadProcessId($fg, [IntPtr]::Zero)
   $tMe = [DshFocus.Win]::GetCurrentThreadId()
   [void][DshFocus.Win]::AttachThreadInput($tMe, $tFg, $true)
-  [void][DshFocus.Win]::ShowWindow($target, 9)
+  # 只在「最小化」时恢复。绝不能无条件 SW_RESTORE ——
+  # 那会把最大化/全屏的浏览器还原成普通窗口（用户实测踩到）。
+  if ([DshFocus.Win]::IsIconic($target)) { [void][DshFocus.Win]::ShowWindow($target, 9) }
   [void][DshFocus.Win]::BringWindowToTop($target)
   [void][DshFocus.Win]::SetForegroundWindow($target)
   [void][DshFocus.Win]::AttachThreadInput($tMe, $tFg, $false)

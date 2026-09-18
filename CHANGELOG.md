@@ -25,3 +25,10 @@
 - 卡片进程一律经 `cmd /c start` 拉起：实测直接 `spawn('powershell.exe', …)` 会得到一个
   **活着但没有窗口**的进程，`detached: true` 更会让脚本根本不执行。
 - 详见 [`docs/engineering-notes.md`](./docs/engineering-notes.md)。
+
+### 修复
+
+- **点击卡片不再取消浏览器的最大化/全屏**：聚焦脚本原先无条件调用
+  `ShowWindow(SW_RESTORE)`，而该调用的语义是把最大化/全屏窗口还原成普通窗口。
+  现在只在窗口**最小化**时才恢复。（用户实测踩到：正在全屏用浏览器时点卡片，
+  浏览器被还原了。）
