@@ -1,162 +1,166 @@
 # dsh-notify-desktop
 
-**给 DeepSeek Harness 的「叫得醒人」的完成提醒** —— 一个会话跑完，屏幕右下角弹一张**橙色常驻卡片**，上面写着**是哪个会话**跑完了；不点它就一直留着，点卡片会把浏览器拉到最前并切回那个会话，点右上角 ✕ 则只关掉卡片、不跳转。
+English | [中文](README.zh.md)
 
-> Windows 专用。宿主半边跑在 DSH 的 Node 进程里，卡片是一个零依赖的 PowerShell + WinForms 脚本。
+**A completion alert for DeepSeek Harness that you cannot miss.** When a session finishes, an **orange, always-on-top card** appears in the bottom-right corner and tells you **which session** finished. It stays until you deal with it. Click the card and the browser comes to the front and switches to that session; click the **✕** in its top-right corner and the card just closes, without jumping anywhere.
+
+> Windows only. The host half runs inside DSH's Node process; the card itself is a zero-dependency PowerShell + WinForms script.
 
 ---
 
-## 为什么不用系统 Toast
+## Why not a system toast?
 
-这是设计取舍，不是没做：
+This is a deliberate trade-off, not an omission:
 
-| 需求 | 系统 Toast / 40 多个现成通知插件 | 本插件 |
+| Requirement | System toast / 40+ existing notification plugins | This plugin |
 |---|---|---|
-| **橙色**（或任何自定义配色） | ❌ 外观由系统渲染，应用改不了 | ✅ |
-| **不点不消失** | ❌ 系统会收起、送进操作中心 | ✅ |
-| 多个会话同时完成不互相顶掉 | ❌ 新 Toast 顶掉旧的 | ✅ 竖向堆叠，各占一行 |
-| **点击跳到对应会话** | ⚠️ 只能打开 GUI，切不到具体会话 | ✅ 见下 |
-| 中文会话名 | — | ✅ 走 UTF-8 JSON，不经命令行 |
+| **Orange** (or any custom colour) | ❌ Rendered by the OS; apps cannot change it | ✅ |
+| **Stays until dismissed** | ❌ The OS collapses it into the Action Center | ✅ |
+| Several sessions finishing at once | ❌ A new toast replaces the old one | ✅ Stacked vertically, one row each |
+| **Click to jump to that session** | ⚠️ Can open the GUI, cannot select a specific session | ✅ See below |
+| Non-ASCII session names | — | ✅ Passed as UTF-8 JSON, never through argv |
 
-如果你只想要「系统原生的通知」，用 `dsh-notify-windows` 之类的插件更省事；**本插件是为「必须一眼看见、必须知道是哪个会话、必须能点回去」这个场景做的**。
-
----
-
-## 效果
-
-```
-┌──────────────────────────────────┐
-│ 会话完成                       ✕ │  ← ✕：只关卡片，不跳转
-│ 会话： Fix login redirect · api-service          │  ← 一眼看出是哪个会话跑完了
-│ Agent 结束了本轮工作，可以回来看…  │  ← 点卡片主体：浏览器到最前 + 切到该会话
-└──────────────────────────────────┘
-```
-
-多个会话同时完成时**向上堆叠**，不会互相遮挡；卡片带 `WS_EX_NOACTIVATE`，**不会抢走你正在打字的焦点**。
+If all you want is a native system notification, something like `dsh-notify-windows` is less work. **This plugin exists for the case where you must see it at a glance, must know which session it was, and must be able to click back to it.**
 
 ---
 
-## 安装
+## What it looks like
+
+```
+┌────────────────────────────────────────┐
+│ Session finished                    ✕ │  ← ✕: closes the card, does NOT jump
+│ Session: Fix login redirect · api-svc  │  ← which session just finished
+│ The agent finished this turn. Cli…     │  ← click the card: browser to front + switch
+└────────────────────────────────────────┘
+```
+
+Cards from concurrently finishing sessions **stack upwards** instead of covering each other, and the card carries `WS_EX_NOACTIVATE` so it **never steals focus while you are typing**.
+
+---
+
+## Install
 
 ```powershell
 dsh plugin --profile web add dsh-notify-desktop
-# 然后重启 dsh web 生效（插件代码变更必须重启，profile 的 patch 才是热更新的）
+# then restart dsh web (plugin code changes require a restart;
+# only the profile's own patch layer is hot-reloaded)
 ```
 
-还没发布到 npm 时，用本地路径：
+Before it is published to npm, install from a local path:
 
 ```powershell
 dsh plugin --profile web add 'D:\path\to\dsh-notify-desktop'
 ```
 
-装完检查一下 profile 里的 bundles 是否多了 `dsh-notify-desktop`（`dsh.bundle.patch` 声明过，`dsh plugin add` 会自动追加）。
+Afterwards, check that `dsh-notify-desktop` shows up in the profile's bundles — `dsh.bundle.patch` declares it, and `dsh plugin add` appends it automatically.
 
 ---
 
-## 配置
+## Configuration
 
-配置写在 profile 的 `cordis.patch.yml` 里（本插件自带的默认值见 [`cordis.patch.yml`](./cordis.patch.yml)）：
+Configuration goes in the profile's `cordis.patch.yml` (the defaults this package ships are in [`cordis.patch.yml`](./cordis.patch.yml)):
 
 ```yaml
 - id: dsh-notify-desktop
   config:
-    title: '会话完成'
+    title: '会话完成'                # card headline — set any text you like
     accent: '#F7630C'
-    persistUntilClick: true       # false = 10 秒后自动关
-    reasons: []                   # 留空 = 所有结束原因都提醒
-    skipSubagents: true           # 子代理跑完不提醒
-    idleOnly: true                # 等 agent 真正空闲再提醒
+    persistUntilClick: true       # false = auto-close after 10s
+    reasons: []                   # empty = notify for every end reason
+    skipSubagents: true           # do not notify when a sub-agent finishes
+    idleOnly: true                # wait until the agent is truly idle
     focusBrowser: true
-    focusWindowTitle: 'Google Chrome'   # Edge 用 'Microsoft Edge'
+    focusWindowTitle: 'Google Chrome'   # use 'Microsoft Edge' for Edge
 ```
 
-| 字段 | 默认 | 含义 |
+| Field | Default | Meaning |
 |---|---|---|
-| `scriptPath` | `''` | 卡片脚本；留空 = 用包内 `assets/dsh-notify.ps1` |
-| `title` / `message` | `会话完成` / 按原因取 | 卡片文案 |
-| `persistUntilClick` | `true` | 不点不消失 |
-| `style` | `popup` | `popup`（自绘卡片）/ `toast`（系统 Toast）/ `auto` |
-| `accent` | `#F7630C` | 主色 |
-| `reasons` | `[]` | 只提醒这些结束原因（`completed` / `aborted` / `blocked` / `error` / `max-tokens` / `interrupted`） |
-| `skipSubagents` | `true` | 跳过子代理会话 |
-| `idleOnly` / `idleTimeoutMs` | `true` / `300000` | 先等 `agent.whenIdle()` 再提醒 |
-| `focusBrowser` | `true` | 点击时把浏览器窗口拉到前台 |
-| `focusWindowTitle` / `focusWindowClass` | `Google Chrome` / `Chrome_WidgetWin` | 怎么找到浏览器窗口：先按标题子串，找不到再按窗口类兜底（Edge 用 `Microsoft Edge`） |
-| `pendingPath` / `clickPath` | `/dsh-notify/*` | 两个内部路由 |
+| `scriptPath` | `''` | Card script; empty = bundled `assets/dsh-notify.ps1` |
+| `focusScriptPath` | `''` | Focus script; empty = bundled `assets/dsh-focus-window.ps1` |
+| `title` / `message` | `会话完成` / per reason | Card text. **The shipped defaults are Chinese** — override them here if you want another language; e.g. `title: 'Session finished'` |
+| `persistUntilClick` | `true` | Stay until clicked |
+| `style` | `popup` | `popup` (custom card) / `toast` (system toast) / `auto` |
+| `accent` | `#F7630C` | Accent colour |
+| `reasons` | `[]` | Only notify for these end reasons (`completed` / `aborted` / `blocked` / `error` / `max-tokens` / `interrupted`) |
+| `skipSubagents` | `true` | Skip sub-agent sessions |
+| `idleOnly` / `idleTimeoutMs` | `true` / `300000` | Wait for `agent.whenIdle()` before notifying |
+| `focusBrowser` | `true` | Bring the browser window to the front on click |
+| `focusWindowTitle` / `focusWindowClass` | `Google Chrome` / `Chrome_WidgetWin` | How to find the browser: match the title substring first, fall back to the window class (Edge uses `Microsoft Edge`) |
+| `pendingPath` / `clickPath` | `/dsh-notify/*` | The two internal routes |
 
 ---
 
-## 它是怎么工作的
+## How it works
 
 ```
-宿主半边 (lib/index.js)
-  ctx.on('session/event')  ──过滤──▶ event.type === 'turn/end'
-        │                            （turn/end 是会话日志事件，不是 Cordis 事件）
-        ├─ 跳过子代理会话
-        ├─ 可选：等 agent.whenIdle()
-        ├─ 取标题：ctx.get('sessionTitle').get(session).title
-        └─ 起卡片 (lib/card.js → cmd /c start → powershell + WinForms)
+Host half (lib/index.js)
+  ctx.on('session/event')  ──filter──▶ event.type === 'turn/end'
+        │                              (turn/end is a session-log event, NOT a Cordis event)
+        ├─ skip sub-agent sessions
+        ├─ optional: wait for agent.whenIdle()
+        ├─ read the title: ctx.get('sessionTitle').get(session).title
+        └─ spawn the card (lib/card.js → cmd /c start → powershell + WinForms)
 
-卡片被点击（点右上角 ✕ 则只关卡片，不走下面任何一步）
+Card clicked  (clicking ✕ closes the card and skips everything below)
   └─ -OnClickUrl ──▶ GET /dsh-notify/click?session=<id>
-                        ├─ 宿主登记「待切会话」
-                        └─ 宿主拉起 assets/dsh-focus-window.ps1 把浏览器窗口拉到前台
+                        ├─ host records the "session to select"
+                        └─ host launches assets/dsh-focus-window.ps1 to bring the browser forward
 
-浏览器半边 (lib/client.js)
-  每 1 秒轮询 GET /dsh-notify/pending
-        └─ 有待切会话 ▶ ctx.sessions.open(id)   ← 切到那个会话
+Browser half (lib/client.js)
+  polls GET /dsh-notify/pending once a second
+        └─ pending session ▶ ctx.sessions.open(id)   ← switch to that session
 ```
 
-**为什么必须有浏览器半边**：「当前选中会话」是纯浏览器状态（还存在 `localStorage` 里），宿主既没有这个概念，也没有对应 RPC 或 websocket 事件。唯一能改它的地方是浏览器里的 `ctx.sessions.open(id)`。
+**Why a browser half is mandatory.** "Currently selected session" is pure browser state (it lives in `localStorage`). The host has no notion of it, no RPC for it and no websocket event for it. The only place it can be changed is in the browser, via `ctx.sessions.open(id)`.
 
-**为什么两个路由不带鉴权**：它们注册在 `ctx.webServer` 上（exact 路由），而不是 `ctx.connection.fetch` —— 后者被硬锁在 `/api/**` 且在浏览器 cookie 鉴权栅栏之后，PowerShell 的请求会吃 401。
-
----
-
-## 已知限制
-
-- **只支持 Windows**（`os: ["win32"]`）：卡片是 PowerShell + WinForms。「点击跳到对应会话」还依赖浏览器**已打开 GUI**。
-- **「拉到前台」是按窗口标题/类名找浏览器**，所以默认值认的是 Chrome（`Google Chrome` / `Chrome_WidgetWin`）。用 Edge 请把 `focusWindowTitle` 改成 `Microsoft Edge`（类名相同，不用改）。
-- **`turn/end` ≠ 整棵树落定**：DSH 没有「所有子代理都跑完」的事件。长任务想要「整树落定才提醒一次」，现在只能靠 `idleOnly`（等 agent 空闲）近似。
-- **多个浏览器标签页**：待切会话是单消费者（读一次就清空），所以只会有一个标签页跳过去 —— 这是刻意的。
+**Why the two routes are unauthenticated.** They are registered on `ctx.webServer` as exact routes, not on `ctx.connection.fetch` — the latter is hard-locked to `/api/**` and sits behind the browser-cookie auth fence, so a PowerShell request would get a 401.
 
 ---
 
-## 真机验证记录
+## Known limitations
 
-以下都在 Windows 10 Enterprise LTSC 2021 + `@deepseek-ai/dsh@0.1.5-rc.2` + Chrome 上实测过：
+- **Windows only** (`os: ["win32"]`): the card is PowerShell + WinForms. "Click to jump to the session" additionally assumes the browser already has the GUI open.
+- **"Bring to front" finds the browser by window title / class**, so the defaults are Chrome-shaped (`Google Chrome` / `Chrome_WidgetWin`). For Edge, change `focusWindowTitle` to `Microsoft Edge` (the class is the same).
+- **`turn/end` is not "the whole tree settled".** DSH has no event for "every sub-agent has finished". For long tasks, `idleOnly` (wait until the agent is idle) is only an approximation.
+- **Multiple browser tabs**: the pending session is single-consumer (read once, then cleared), so exactly one tab jumps. That is intentional.
 
-| 项 | 结果 |
+---
+
+## Verification on a real machine
+
+All of the following were measured on Windows 10 Enterprise LTSC 2021 + `@deepseek-ai/dsh@0.1.5-rc.2` + Chrome:
+
+| Item | Result |
 |---|---|
-| 会话跑完自动弹卡片 | ✅ |
-| 卡片显示**会话名**（中文无乱码） | ✅ |
-| **不点不消失** | ✅ 8+6 秒后仍在 |
-| 右上角 **✕ 只关闭、不跳转** | ✅ |
-| **点卡片 → 浏览器到前台 + GUI 切到该会话** | ✅ |
-| 已在目标会话时点卡片 | ✅ 正常，且**不会取消窗口的最大化/全屏** |
-| 普通窗口 / 最大化 / 全屏 三种状态下点击 | ✅ 窗口状态均不受影响 |
-| 多个会话同时完成 | ✅ 竖向堆叠，各占一行 |
-| 两个内部路由免鉴权可被 PowerShell 直接访问 | ✅ `/dsh-notify/pending` → 200 |
+| Card appears automatically when a session finishes | ✅ |
+| Card shows the **session name** (correct non-ASCII text) | ✅ |
+| **Stays until dismissed** | ✅ still there after 8+6 seconds |
+| Top-right **✕ closes without jumping** | ✅ |
+| **Click card → browser to front + GUI switches to that session** | ✅ |
+| Clicking while already on the target session | ✅ works, and does **not** un-maximize/un-fullscreen the window |
+| Clicking with the window normal / maximized / fullscreen | ✅ window state unaffected in all three |
+| Several sessions finishing at once | ✅ stacked, one row each |
+| Both internal routes reachable from PowerShell without auth | ✅ `/dsh-notify/pending` → 200 |
 
-宿主半边另有 18 条断言的自测：`node verify.mjs`。
+The host half also has an 18-assertion self-test: `node verify.mjs`.
 
 ---
 
-## 开发
+## Development
 
 ```powershell
-# 卡片脚本单独测（不经 DSH）—— 会真的弹卡片
-node -e "import('./lib/card.js').then(async (m) => { const s = m.resolveCardScript(''); console.log(m.showCard({ script: s, title: '测试', session: 'dev', message: 'hello', seconds: 8 })) })"
+# Test the card script alone (outside DSH) — this will really pop a card
+node -e "import('./lib/card.js').then(async (m) => { const s = m.resolveCardScript(''); console.log(m.showCard({ script: s, title: 'test', session: 'dev', message: 'hello', seconds: 8 })) })"
 
-# 聚焦脚本单独测（把浏览器窗口拉到前台）
+# Test the focus script alone (brings the browser window to the front)
 powershell -NoProfile -ExecutionPolicy Bypass -File assets/dsh-focus-window.ps1
 
-# 宿主半边自测（桩 ctx，不会真弹卡片）
+# Host-half self-test (stub ctx; does not pop a card)
 node verify.mjs
 ```
 
-工程笔记（几个花了很久才定位的坑，改代码前建议先看）见 [`docs/engineering-notes.md`](./docs/engineering-notes.md)；
-插件 API 的一手考古与现成插件调研见 [`docs/research/`](./docs/research/)。
+Engineering notes — several traps that took a long time to pin down, worth reading before changing code — are in [`docs/engineering-notes.md`](./docs/engineering-notes.md).
+First-hand research into the plugin API and a survey of existing notification plugins are in [`docs/research/`](./docs/research/).
 
 ## License
 
