@@ -67,7 +67,7 @@ dsh plugin --profile web add 'D:\path\to\dsh-notify-desktop'
     skipSubagents: true           # 子代理跑完不提醒
     idleOnly: true                # 等 agent 真正空闲再提醒
     focusBrowser: true
-    webUrl: 'http://127.0.0.1:3080/'   # ⚠ 必须与实际 GUI 地址完全一致
+    focusWindowTitle: 'Google Chrome'   # Edge 用 'Microsoft Edge'
 ```
 
 | 字段 | 默认 | 含义 |
@@ -97,9 +97,10 @@ dsh plugin --profile web add 'D:\path\to\dsh-notify-desktop'
         ├─ 取标题：ctx.get('sessionTitle').get(session).title
         └─ 起卡片 (lib/card.js → cmd /c start → powershell + WinForms)
 
-卡片被点击
-  ├─ -OnClickUrl ──▶ GET /dsh-notify/click?session=<id>   （宿主登记"待切会话"）
-  └─ -OnClick    ──▶ 打开 webUrl                          （浏览器窗口到最前）
+卡片被点击（点右上角 ✕ 则只关卡片，不走下面任何一步）
+  └─ -OnClickUrl ──▶ GET /dsh-notify/click?session=<id>
+                        ├─ 宿主登记「待切会话」
+                        └─ 宿主拉起 assets/dsh-focus-window.ps1 把浏览器窗口拉到前台
 
 浏览器半边 (lib/client.js)
   每 1 秒轮询 GET /dsh-notify/pending
@@ -115,9 +116,29 @@ dsh plugin --profile web add 'D:\path\to\dsh-notify-desktop'
 ## 已知限制
 
 - **只支持 Windows**（`os: ["win32"]`）：卡片是 PowerShell + WinForms。「点击跳到对应会话」还依赖浏览器**已打开 GUI**。
-- **`webUrl` 那条限制已经不存在了**：早先想用「打开 GUI 的 URL」来把浏览器调到前台，但 GUI 首页要求鉴权、实际地址带 token 且随重启变化 —— 靠 URL 匹配只会开出一个「需要鉴权」的废标签页。现在改成**直接激活浏览器窗口**（`assets/dsh-focus-window.ps1`），先按窗口标题子串匹配、找不到再按窗口类兜底，与 URL 无关。
+- **「拉到前台」是按窗口标题/类名找浏览器**，所以默认值认的是 Chrome（`Google Chrome` / `Chrome_WidgetWin`）。用 Edge 请把 `focusWindowTitle` 改成 `Microsoft Edge`（类名相同，不用改）。
 - **`turn/end` ≠ 整棵树落定**：DSH 没有「所有子代理都跑完」的事件。长任务想要「整树落定才提醒一次」，现在只能靠 `idleOnly`（等 agent 空闲）近似。
 - **多个浏览器标签页**：待切会话是单消费者（读一次就清空），所以只会有一个标签页跳过去 —— 这是刻意的。
+
+---
+
+## 真机验证记录
+
+以下都在 Windows 10 Enterprise LTSC 2021 + `@deepseek-ai/dsh@0.1.5-rc.2` + Chrome 上实测过：
+
+| 项 | 结果 |
+|---|---|
+| 会话跑完自动弹卡片 | ✅ |
+| 卡片显示**会话名**（中文无乱码） | ✅ |
+| **不点不消失** | ✅ 8+6 秒后仍在 |
+| 右上角 **✕ 只关闭、不跳转** | ✅ |
+| **点卡片 → 浏览器到前台 + GUI 切到该会话** | ✅ |
+| 已在目标会话时点卡片 | ✅ 正常，且**不会取消窗口的最大化/全屏** |
+| 普通窗口 / 最大化 / 全屏 三种状态下点击 | ✅ 窗口状态均不受影响 |
+| 多个会话同时完成 | ✅ 竖向堆叠，各占一行 |
+| 两个内部路由免鉴权可被 PowerShell 直接访问 | ✅ `/dsh-notify/pending` → 200 |
+
+宿主半边另有 18 条断言的自测：`node verify.mjs`。
 
 ---
 
@@ -126,9 +147,16 @@ dsh plugin --profile web add 'D:\path\to\dsh-notify-desktop'
 ```powershell
 # 卡片脚本单独测（不经 DSH）—— 会真的弹卡片
 node -e "import('./lib/card.js').then(async (m) => { const s = m.resolveCardScript(''); console.log(m.showCard({ script: s, title: '测试', session: 'dev', message: 'hello', seconds: 8 })) })"
+
+# 聚焦脚本单独测（把浏览器窗口拉到前台）
+powershell -NoProfile -ExecutionPolicy Bypass -File assets/dsh-focus-window.ps1
+
+# 宿主半边自测（桩 ctx，不会真弹卡片）
+node verify.mjs
 ```
 
-工程笔记（几个花了很久才定位的坑，改代码前建议先看）见 [`docs/engineering-notes.md`](./docs/engineering-notes.md)。
+工程笔记（几个花了很久才定位的坑，改代码前建议先看）见 [`docs/engineering-notes.md`](./docs/engineering-notes.md)；
+插件 API 的一手考古与现成插件调研见 [`docs/research/`](./docs/research/)。
 
 ## License
 
