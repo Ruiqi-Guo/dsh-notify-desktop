@@ -1,4 +1,4 @@
-﻿# dsh-focus-window.ps1 —— 把浏览器窗口拉到前台
+﻿﻿# dsh-focus-window.ps1 —— 把浏览器窗口拉到前台
 #
 # 为什么单独一个脚本、而不是塞进卡片脚本：
 #   卡片脚本的显示流程很脆弱（见 docs/engineering-notes.md 第 2 条），
@@ -26,6 +26,9 @@ param(
   # 我们会用 Ctrl+Tab 逐个切标签、每切一次读窗口标题，直到匹配为止 ——
   # 非浏览器进程读不到 Chrome 的标签列表（UIA 实测只有 1 个 Pane），
   # 但「窗口标题 = 当前活动标签标题」这一点是可用的。
+  # GUI 的地址（含 token 最好）。没有 GUI 标签可切时，打开它会新起一个 DSH 标签，
+  # 那个新标签会自己轮询并消费这次点击，从而跳到对应会话。
+  [string]$OpenUrl = ''
   [string]$TabTitle = 'DeepSeek Harness'
 )
 
@@ -110,4 +113,10 @@ if ($needle -ne '') {
   $buf2 = New-Object System.Text.StringBuilder 512
   [DshFocus.Win]::GetWindowText($win, $buf2, 512) | Out-Null
   if ($buf2.ToString() -like "*$needle*") { Write-Output 'tab focused' } else { Write-Output 'tab not found' }
+}
+
+# 没有 GUI 标签可切时：打开这个地址，让浏览器新起一个 DSH 标签。
+# 新标签加载后会自己轮询 /dsh-notify/pending 并消费这次点击 —— 于是自动跳到对应会话。
+if ($OpenUrl -ne '') {
+  try { Start-Process $OpenUrl } catch { }
 }
