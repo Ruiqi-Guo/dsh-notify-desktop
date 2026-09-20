@@ -99,7 +99,7 @@ if ($needle -ne '') {
   $buf = New-Object System.Text.StringBuilder 512
   [DshFocus.Win]::GetWindowText($win, $buf, 512) | Out-Null
   if ($buf.ToString() -notlike "*$needle*") {
-    for ($i = 0; $i -lt 25; $i++) {
+    for ($i = 0; $i -lt 15; $i++) {
       try { [System.Windows.Forms.SendKeys]::SendWait('^{TAB}') } catch { break }
       Start-Sleep -Milliseconds 160
       $buf = New-Object System.Text.StringBuilder 512
