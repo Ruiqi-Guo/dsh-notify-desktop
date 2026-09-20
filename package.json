@@ -1,6 +1,6 @@
 {
   "name": "dsh-notify-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DSH plugin: a loud, persistent orange card at the bottom-right when a session finishes — it names the session, never auto-dismisses, has a close button that does NOT jump, and clicking the card brings the browser forward and switches the GUI to that session.",
   "license": "MIT",
   "author": "Ruiqi Guo",
@@ -58,7 +58,7 @@
     "client": {
       "platform": "web",
       "inject": [
-        "@deepseek-ai/dsh-api-session-controller"
+        "sessions"
       ]
     },
     "compatibility": {
