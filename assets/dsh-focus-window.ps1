@@ -21,7 +21,10 @@
 
 param(
   [string]$Title = 'Google Chrome',
-  [string]$Class = 'Chrome_WidgetWin'
+  [string]$Class = 'Chrome_WidgetWin',
+  # GUI 的精确地址（含 token）。打开它会切回已有标签页 ——
+  # 非浏览器进程没有别的办法切换 Chrome 的标签页（UIA 读不到，实测）。
+  [string]$OpenUrl = ''
 )
 
 $ErrorActionPreference = 'Continue'
@@ -82,4 +85,10 @@ if ($target -ne [IntPtr]::Zero) {
   else { Write-Output 'raised but not foreground' }
 } else {
   Write-Output 'no matching window'
+}
+
+# 打开 GUI 的精确地址：Chrome 会切回那个已有标签页（URL 完全一致时）。
+# 即便退化成新标签页，它带着 token 也能正常加载并消费这次点击。
+if ($OpenUrl -ne '') {
+  try { Start-Process $OpenUrl } catch { }
 }
