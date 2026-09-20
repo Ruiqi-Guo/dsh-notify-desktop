@@ -22,9 +22,11 @@
 param(
   [string]$Title = 'Google Chrome',
   [string]$Class = 'Chrome_WidgetWin',
-  # GUI 的精确地址（含 token）。打开它会切回已有标签页 ——
-  # 非浏览器进程没有别的办法切换 Chrome 的标签页（UIA 读不到，实测）。
-  [string]$OpenUrl = ''
+  # 目标标签页标题里应包含的子串（例如 DeepSeek Harness）。
+  # 我们会用 Ctrl+Tab 逐个切标签、每切一次读窗口标题，直到匹配为止 ——
+  # 非浏览器进程读不到 Chrome 的标签列表（UIA 实测只有 1 个 Pane），
+  # 但「窗口标题 = 当前活动标签标题」这一点是可用的。
+  [string]$TabTitle = 'DeepSeek Harness'
 )
 
 $ErrorActionPreference = 'Continue'
@@ -86,9 +88,26 @@ if ($target -ne [IntPtr]::Zero) {
 } else {
   Write-Output 'no matching window'
 }
-
-# 打开 GUI 的精确地址：Chrome 会切回那个已有标签页（URL 完全一致时）。
-# 即便退化成新标签页，它带着 token 也能正常加载并消费这次点击。
-if ($OpenUrl -ne '') {
-  try { Start-Process $OpenUrl } catch { }
+# 切回 DSH 标签页：先看标题是否已经是它，不是就用 Ctrl+Tab 逐个切、每切一次读标题。
+# 为什么这么绕：非浏览器进程没有直接切 Chrome 标签页的 API（UIA 在这台机器上读不到
+# 任何 TabItem，只有 1 个 Pane），而 Chrome 对外部启动的 URL 会开新标签而不是复用。
+# 窗口标题始终等于「当前活动标签的标题」，所以「切一次、读一次」可以可靠地找到目标。
+Add-Type -AssemblyName System.Windows.Forms
+$needle = $TabTitle
+if ($needle -ne '') {
+  $win = [DshFocus.Win]::GetForegroundWindow()
+  $buf = New-Object System.Text.StringBuilder 512
+  [DshFocus.Win]::GetWindowText($win, $buf, 512) | Out-Null
+  if ($buf.ToString() -notlike "*$needle*") {
+    for ($i = 0; $i -lt 25; $i++) {
+      try { [System.Windows.Forms.SendKeys]::SendWait('^{TAB}') } catch { break }
+      Start-Sleep -Milliseconds 160
+      $buf = New-Object System.Text.StringBuilder 512
+      [DshFocus.Win]::GetWindowText($win, $buf, 512) | Out-Null
+      if ($buf.ToString() -like "*$needle*") { break }
+    }
+  }
+  $buf2 = New-Object System.Text.StringBuilder 512
+  [DshFocus.Win]::GetWindowText($win, $buf2, 512) | Out-Null
+  if ($buf2.ToString() -like "*$needle*") { Write-Output 'tab focused' } else { Write-Output 'tab not found' }
 }

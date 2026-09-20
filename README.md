@@ -86,6 +86,7 @@ Configuration goes in the profile's `cordis.patch.yml` (the defaults this packag
 | `idleOnly` / `idleTimeoutMs` | `true` / `300000` | Wait for `agent.whenIdle()` before notifying |
 | `focusBrowser` | `true` | Bring the browser window to the front on click |
 | `focusWindowTitle` / `focusWindowClass` | `Google Chrome` / `Chrome_WidgetWin` | How to find the browser: match the title substring first, fall back to the window class (Edge uses `Microsoft Edge`) |
+| `focusTabTitle` | `DeepSeek Harness` | The card also switches **back to the DSH tab**: it cycles tabs with Ctrl+Tab and reads the window title (= the active tab title) until it matches. Empty = only activate the window, do not switch tabs |
 | `pendingPath` / `clickPath` | `/dsh-notify/*` | The two internal routes |
 
 ---
