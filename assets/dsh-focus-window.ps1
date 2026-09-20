@@ -11,7 +11,7 @@
 # 所以「切一次、读一次」是这里唯一可靠的办法。
 #
 # 为什么不用「打开 GUI 地址让 Chrome 复用已有标签」：实测 Chrome 对外部启动的 URL
-# 一律新开标签，不会复用。所以复用靠上面的切标签，新开只用于「本来就没有标签」的情况。
+# 一律新开标签，不会复用。复用靠上面的切标签，新开只用于「本来就没有标签」的情况。
 #
 # 注意：故意不用 [CmdletBinding()]、也故意不 exit —— 那样写会报
 # 「ArgumentException: Argument type cannot be System.Void」。
@@ -20,7 +20,10 @@ param(
   [string]$Title = 'Google Chrome',
   [string]$Class = 'Chrome_WidgetWin',
   [string]$TabTitle = 'DeepSeek Harness',
-  [string]$OpenUrl = ''
+  [string]$OpenUrl = '',
+  # 宿主明确说「现在没有 GUI 标签可切」时置位 —— 跳过逐个切标签那一步。
+  # 用开关而不是传空字符串：powershell -File 会把空字符串参数直接吞掉。
+  [switch]$NoTabSearch
 )
 
 $ErrorActionPreference = 'Continue'
@@ -83,8 +86,8 @@ if ($target -ne [IntPtr]::Zero) {
   Write-Output 'no matching window'
 }
 
-# ── 切到 DSH 标签页（只在窗口标题还不匹配时才动手） ─────────────────────────────
-if ($mainWindow -ne [IntPtr]::Zero -and $TabTitle -ne '') {
+# ── 切到 DSH 标签页（宿主没说"没有标签"、且窗口标题还不匹配时才动手） ───────────
+if (-not $NoTabSearch -and $mainWindow -ne [IntPtr]::Zero -and $TabTitle -ne '') {
   Add-Type -AssemblyName System.Windows.Forms
 
   $buf = New-Object System.Text.StringBuilder 512
